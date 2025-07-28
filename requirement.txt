@@ -1,0 +1,46 @@
+1. The tournament information is wrapped with <h3 class="tournreport"> lable. Include tournament name, date, location address.
+2. A tournament can has multiple sections.
+3. The section name is in <h4> lable
+4. The section result is after the section name, and wrapped with <pre> lable
+5. The first line of section result is the header, "pos last name first       id numb   start end/#gms  rd1 rd2 rd3 rd4 rd5 tot", the "rd1 rd2 rd3 rd4 rd5" depends on the rounds of the section, for example, if the section only has 3 rounds, the header would be "pos last name first       id numb   start end/#gms  rd1 rd2 rd3 tot", if the section has 4 rounds, the header is "pos last name first       id numb   start end/#gms  rd1 rd2 rd3 rd4 tot", "pos last name first       id numb   start end/#gms  rd1 rd2 rd3 rd4 rd5 tot" indicate that the section has 5 rounds.
+6. after the section result header, each line is the result for each player. The rdn column is the result of round N. For exmaple, rd3 column is "W31" means the result of round3 is "W31.
+7. The output is in json format. Below is the example:
+{
+  "url": "https://ratingsnw.com/report24-25/HotSummerChess-IV.html",
+  "tournament": "Hot Summer Chess IV",
+  "date": "Jul 15, 2025",
+  "address": "Ferndale, WA",
+  "TD": "Kaech",
+  "sections": [
+    {
+      "section": "Hot Summer Chess IV Section 1one",
+      "results": [
+        {
+          "id": "SHMJ995H",
+          "pos": 1,
+          "last name": "Zhang",
+          "first name": "Owen",
+          "start": 1551,
+          "end": 1575,
+          "gms": 373,
+          "rds": [
+            {
+              "round": "rd1",
+              "res": "W4"
+            },
+            {
+              "round": "rd1",
+              "res": "W2"
+            },
+            {
+              "round": "rd1",
+              "res": "W31"
+            }
+          ],
+          "tot": 3.0
+        }
+      ]
+    }
+  ]
+}
+"rds" is a list of result of all rounds.

@@ -1,0 +1,9 @@
+1. create sqlite table tournament, schema: id, tournamnent name, date, address, url. id is the primary unique key.
+2. create sqlite table player, schema: id, last_name, first_name. id is the primary unique key.
+3. create sqlite table player_tournament. schema: player_id, tournament_id, section, start, end. player_id, tournament_id, section are the combined unique key.
+4. create sqlite table games. schema: tournament_id, player_id, section, round, opponent_id, result. 
+5. read the chess result json file.
+6. insert a record to tournamnent table if it's not exist.
+7. for each player, insert into player table if it's not exist. The player id is the id in the json file and remove the first 4 character.
+8. insert into player_tournament for every record.
+9. insert into games for each round(rds) when the res start with 'W', 'L' or'D'. And save the first character as the result, and the remanning is the pos of the opponent in the same section, and save the opponent's player_id as the opponent_id.
