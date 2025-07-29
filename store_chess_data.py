@@ -28,19 +28,30 @@ def create_database_schema(conn):
     )
     ''')
     
+    # Create section table
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS section (
+        tournament_id INTEGER,
+        section_id INTEGER,
+        section_name TEXT NOT NULL,
+        PRIMARY KEY (tournament_id, section_id),
+        FOREIGN KEY (tournament_id) REFERENCES tournament (id)
+    )
+    ''')
+    
     # Create player_tournament table
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS player_tournament (
         player_id TEXT,
         tournament_id INTEGER,
-        section TEXT NOT NULL,
+        section_id INTEGER,
         start_rating INTEGER,
         end_rating INTEGER,
         games INTEGER,
         score REAL,
-        PRIMARY KEY (player_id, tournament_id, section),
+        PRIMARY KEY (player_id, tournament_id, section_id),
         FOREIGN KEY (player_id) REFERENCES player (id),
-        FOREIGN KEY (tournament_id) REFERENCES tournament (id)
+        FOREIGN KEY (tournament_id, section_id) REFERENCES section (tournament_id, section_id)
     )
     ''')
     
@@ -49,12 +60,12 @@ def create_database_schema(conn):
     CREATE TABLE IF NOT EXISTS games (
         tournament_id INTEGER,
         player_id TEXT,
-        section TEXT,
+        section_id INTEGER,
         round TEXT,
         opponent_id TEXT,
         result TEXT,
-        PRIMARY KEY (tournament_id, player_id, section, round),
-        FOREIGN KEY (tournament_id) REFERENCES tournament (id),
+        PRIMARY KEY (tournament_id, player_id, section_id, round),
+        FOREIGN KEY (tournament_id, section_id) REFERENCES section (tournament_id, section_id),
         FOREIGN KEY (player_id) REFERENCES player (id),
         FOREIGN KEY (opponent_id) REFERENCES player (id)
     )
@@ -120,7 +131,31 @@ def insert_player(conn, player_data):
     
     return player_id
 
-def insert_player_tournament(conn, player_id, tournament_id, section, player_data):
+def insert_section(conn, tournament_id, section_name):
+    """Insert section data and return section_id"""
+    cursor = conn.cursor()
+    
+    # Check for the next available section_id for this tournament
+    cursor.execute(
+        "SELECT MAX(section_id) FROM section WHERE tournament_id = ?",
+        (tournament_id,)
+    )
+    result = cursor.fetchone()
+    
+    # Start section_id from 1 if this is the first section
+    section_id = (result[0] or 0) + 1
+    
+    # Insert section
+    cursor.execute(
+        "INSERT INTO section (tournament_id, section_id, section_name) VALUES (?, ?, ?)",
+        (tournament_id, section_id, section_name)
+    )
+    conn.commit()
+    
+    print(f"Inserted section '{section_name}' with ID {section_id} for tournament {tournament_id}")
+    return section_id
+
+def insert_player_tournament(conn, player_id, tournament_id, section_id, player_data):
     """Insert player tournament participation data"""
     cursor = conn.cursor()
     
@@ -128,13 +163,13 @@ def insert_player_tournament(conn, player_id, tournament_id, section, player_dat
     cursor.execute(
         """
         INSERT OR REPLACE INTO player_tournament 
-        (player_id, tournament_id, section, start_rating, end_rating, games, score) 
+        (player_id, tournament_id, section_id, start_rating, end_rating, games, score) 
         VALUES (?, ?, ?, ?, ?, ?, ?)
         """,
         (
             player_id,
             tournament_id,
-            section,
+            section_id,
             player_data.get("start"),
             player_data.get("end"),
             player_data.get("gms"),
@@ -150,7 +185,7 @@ def get_opponent_id_by_position(players_in_section, opponent_pos):
             return player["id"][4:] if len(player["id"]) > 4 else player["id"]
     return None
 
-def insert_games(conn, tournament_id, section_name, players_in_section):
+def insert_games(conn, tournament_id, section_id, players_in_section):
     """Insert games data for all players in a section"""
     cursor = conn.cursor()
     
@@ -187,13 +222,13 @@ def insert_games(conn, tournament_id, section_name, players_in_section):
             cursor.execute(
                 """
                 INSERT OR REPLACE INTO games 
-                (tournament_id, player_id, section, round, opponent_id, result) 
+                (tournament_id, player_id, section_id, round, opponent_id, result) 
                 VALUES (?, ?, ?, ?, ?, ?)
                 """,
                 (
                     tournament_id,
                     player_id,
-                    section_name,
+                    section_id,
                     round_name,
                     opponent_id,
                     result
@@ -229,13 +264,16 @@ def process_chess_data(json_file, db_file):
             section_name = section.get("section", "")
             players = section.get("results", [])
             
+            # Insert section and get section_id
+            section_id = insert_section(conn, tournament_id, section_name)
+            
             # First pass: insert all players
             for player in players:
                 player_id = insert_player(conn, player)
-                insert_player_tournament(conn, player_id, tournament_id, section_name, player)
+                insert_player_tournament(conn, player_id, tournament_id, section_id, player)
             
             # Second pass: insert games with opponent IDs
-            insert_games(conn, tournament_id, section_name, players)
+            insert_games(conn, tournament_id, section_id, players)
         
         print(f"Successfully processed tournament data into {db_file}")
         return True

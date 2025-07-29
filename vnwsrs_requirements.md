@@ -47,7 +47,7 @@ The system operates in a two-step process:
 ### Data Storage
 
 1. The system must maintain a normalized database schema to store tournament data
-2. The system must enforce relationships between tournament, player, section, and game data
+2. The system must enforce relationships between tournament, player, section table, and game data
 3. The system must handle player IDs according to specified rules (removing first 4 characters)
 4. The system must avoid duplicate data entry for tournaments and players
 5. The system must correctly link games with both player and opponent information
@@ -125,19 +125,30 @@ CREATE TABLE player (
 )
 ```
 
+#### Section Table
+```sql
+CREATE TABLE section (
+    tournament_id INTEGER,
+    section_id INTEGER,
+    section_name TEXT NOT NULL,
+    PRIMARY KEY (tournament_id, section_id),
+    FOREIGN KEY (tournament_id) REFERENCES tournament (id)
+)
+```
+
 #### Player Tournament Table
 ```sql
 CREATE TABLE player_tournament (
     player_id TEXT,
     tournament_id INTEGER,
-    section TEXT NOT NULL,
+    section_id INTEGER,
     start_rating INTEGER,
     end_rating INTEGER,
     games INTEGER,
     score REAL,
-    PRIMARY KEY (player_id, tournament_id, section),
+    PRIMARY KEY (player_id, tournament_id, section_id),
     FOREIGN KEY (player_id) REFERENCES player (id),
-    FOREIGN KEY (tournament_id) REFERENCES tournament (id)
+    FOREIGN KEY (tournament_id, section_id) REFERENCES section (tournament_id, section_id)
 )
 ```
 
@@ -146,12 +157,12 @@ CREATE TABLE player_tournament (
 CREATE TABLE games (
     tournament_id INTEGER,
     player_id TEXT,
-    section TEXT,
+    section_id INTEGER,
     round TEXT,
     opponent_id TEXT,
     result TEXT,
-    PRIMARY KEY (tournament_id, player_id, section, round),
-    FOREIGN KEY (tournament_id) REFERENCES tournament (id),
+    PRIMARY KEY (tournament_id, player_id, section_id, round),
+    FOREIGN KEY (tournament_id, section_id) REFERENCES section (tournament_id, section_id),
     FOREIGN KEY (player_id) REFERENCES player (id),
     FOREIGN KEY (opponent_id) REFERENCES player (id)
 )
@@ -167,15 +178,20 @@ CREATE TABLE games (
    - Player IDs are processed by removing the first 4 characters
    - Check if player exists by processed ID before insertion
 
-3. **Player Tournament Processing**
-   - Create records linking players to tournaments with section info
+3. **Section Processing**
+   - For each section in the tournament, insert a record in the section table
+   - Generate section_id starting from 1 for each tournament
+   - Store section name for reference
+
+4. **Player Tournament Processing**
+   - Create records linking players to tournaments with section_id
    - Include rating and performance data
 
-4. **Games Processing**
+5. **Games Processing**
    - Only process results starting with W, L, or D
    - Extract opponent position from result code
    - Lookup opponent ID using their position in the same section
-   - Store player-opponent game record with result code
+   - Store player-opponent game record with section_id and result code
 
 ## Future Enhancements
 
